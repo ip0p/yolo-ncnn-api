@@ -8,8 +8,10 @@ WORKDIR /ultralytics
 RUN pip install fastapi uvicorn pillow numpy opencv-python-headless ncnn
 
 # YOLO-Modell herunterladen und in NCNN exportieren
-RUN yolo download model=yolo11n.pt && \
-    yolo export model=yolo11n.pt format=ncnn
+#RUN yolo download model=yolo11n.pt
+
+# convert model
+RUN yolo export model=yolo11n.pt format=ncnn
 
 # Kopiere API-Skript ins Image
 COPY api_ncnn.py /ultralytics/api_ncnn.py
