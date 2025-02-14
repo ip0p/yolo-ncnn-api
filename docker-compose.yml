@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  yolo:
+    image: yolo-ncnn-api
+    container_name: yolo-ncnn
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    ipc: host
