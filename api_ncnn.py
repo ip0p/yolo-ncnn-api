@@ -28,20 +28,30 @@ async def detect_objects(file: UploadFile = File(...)):
     # NCNN Inference
     mat = ncnn.Mat.from_pixels(image_cv, ncnn.Mat.PixelType.PIXEL_BGR, image_cv.shape[1], image_cv.shape[0])
     ex = net.create_extractor()
-    ex.input("data", mat)
+    ex.input("in0", mat)
 
-    # Ergebnisse abrufen
+    # Ausgabe-Blob extrahieren
+    ret, out0 = ex.extract("out0")  # Verwenden Sie "out0" als Ausgabe-Blob
+
+    # Ausgabe in ein Numpy-Array umwandeln
+    out0_np = np.array(out0)
+
+    # Ergebnisse verarbeiten
     detections = []
-    for i in range(10):  # Annahme: maximal 10 Objekte
-        ret, out = ex.extract(f"output_{i}")
-        if ret == 0:
-            bbox = [float(out[i]) for i in range(4)]
-            confidence = float(out[4])
-            class_id = int(out[5])
+    num_boxes = out0_np.shape[0]
+    for i in range(num_boxes):
+        box = out0_np[i]
+        x, y, w, h = box[0:4]  # Bounding-Box-Koordinaten
+        confidence = box[4]     # Konfidenzniveau
+        class_id = np.argmax(box[5:])  # Klassen-ID
+
+        if confidence > 0.5:  # Nur Objekte mit hoher Konfidenz berücksichtigen
             detections.append({
-                "class_id": class_id,
-                "confidence": confidence,
-                "bbox": bbox
+                "class_id": int(class_id),
+                "confidence": float(confidence),
+                "bbox": [float(x), float(y), float(w), float(h)]
             })
 
     return {"detections": detections}
+except Exception as e:
+    raise HTTPException(status_code=500, detail=str(e))
