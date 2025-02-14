@@ -6,8 +6,8 @@ from PIL import Image
 import ncnn
 
 # NCNN-Modell laden
-param_path = "yolo11n_ncnn_model/yolo11n_ncnn.param"
-bin_path = "yolo11n_ncnn_model/yolo11n_ncnn.bin"
+param_path = "yolo11n_ncnn_model/model_ncnn.param"
+bin_path = "yolo11n_ncnn_model/model_ncnn.bin"
 net = ncnn.Net()
 net.load_param(param_path)
 net.load_model(bin_path)
