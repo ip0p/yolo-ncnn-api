@@ -19,4 +19,4 @@ COPY api_ncnn.py /ultralytics/api_ncnn.py
 EXPOSE 8863
 
 # Starte die API mit NCNN
-CMD ["uvicorn", "api_ncnn:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "api_ncnn:app", "--host", "0.0.0.0", "--port", "8863"]
