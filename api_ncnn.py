@@ -1,58 +1,128 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import HTMLResponse
 import numpy as np
-import cv2
 import io
-from PIL import Image
-import ncnn
-
-# NCNN-Modell laden
-param_path = "yolo11n_ncnn_model/model.ncnn.param"
-bin_path = "yolo11n_ncnn_model/model.ncnn.bin"
-net = ncnn.Net()
-net.load_param(param_path)
-net.load_model(bin_path)
+from PIL import Image, ImageDraw
+import os
+from ultralytics import YOLO
 
 app = FastAPI()
 
+# Pfade für das Modell
+MODEL_PT_PATH = "yolo11n.pt"
+MODEL_NCNN_PATH = "yolo11n_ncnn_model"
+
+# Prüfen, ob das NCNN-Modell existiert, sonst exportieren
+if not os.path.exists(MODEL_NCNN_PATH):
+    print("NCNN-Modell nicht gefunden. Exportiere jetzt...")
+    model = YOLO(MODEL_PT_PATH)
+    model.export(format="ncnn")
+
+# Exportiertes NCNN-Modell laden
+ncnn_model = YOLO(MODEL_NCNN_PATH)
+
+
 @app.get("/")
 def read_root():
-    return {"message": "YOLOv11 NCNN API läuft!"}
+    return {"message": "YOLOv11 NCNN API läuft mit Ultralytics!"}
+
 
 @app.post("/detect/")
 async def detect_objects(file: UploadFile = File(...)):
     try:
-        # Bild in OpenCV-Format umwandeln
+        # Bild laden und in RGB konvertieren
         image = Image.open(io.BytesIO(await file.read())).convert("RGB")
-        image_np = np.array(image)
-        image_cv = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
 
-        # NCNN Inference
-        mat = ncnn.Mat.from_pixels(image_cv, ncnn.Mat.PixelType.PIXEL_BGR, image_cv.shape[1], image_cv.shape[0])
-        ex = net.create_extractor()
-        ex.input("in0", mat)
+        # YOLO Inferenz ausführen
+        results = ncnn_model(image)
 
-        # Ausgabe-Blob extrahieren
-        ret, out0 = ex.extract("out0")  # Verwenden Sie "out0" als Ausgabe-Blob
-
-        # Ausgabe in ein Numpy-Array umwandeln
-        out0_np = np.array(out0)
-
-        # Ergebnisse verarbeiten
+        # Bounding-Boxes auf das Bild zeichnen
+        draw = ImageDraw.Draw(image)
         detections = []
-        num_boxes = out0_np.shape[0]
-        for i in range(num_boxes):
-            box = out0_np[i]
-            x, y, w, h = box[0:4]  # Bounding-Box-Koordinaten
-            confidence = box[4]     # Konfidenzniveau
-            class_id = np.argmax(box[5:])  # Klassen-ID
+        for result in results:
+            for box in result.boxes:
+                x, y, w, h = box.xywh[0]  # Bounding-Box-Koordinaten
+                x1, y1, x2, y2 = x - w / 2, y - h / 2, x + w / 2, y + h / 2
+                class_id = int(box.cls)
+                confidence = float(box.conf)
 
-            if confidence > 0.5:  # Nur Objekte mit hoher Konfidenz berücksichtigen
+                # Bounding-Box zeichnen
+                draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
+                draw.text((x1, y1 - 10), f"ID: {class_id} ({confidence:.2f})", fill="red")
+
                 detections.append({
-                    "class_id": int(class_id),
-                    "confidence": float(confidence),
-                    "bbox": [float(x), float(y), float(w), float(h)]
+                    "class_id": class_id,
+                    "confidence": confidence,
+                    "bbox": [x1, y1, x2, y2]
                 })
 
-        return {"detections": detections}
+        # Bild als Bytes zurückgeben
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format="PNG")
+        img_byte_arr = img_byte_arr.getvalue()
+
+        return {"detections": detections, "image": img_byte_arr.hex()}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/upload/", response_class=HTMLResponse)
+def upload_page():
+    """Web-Interface zum Hochladen von Bildern mit Vorschau und Bounding-Boxes."""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>YOLOv11 NCNN Web Interface</title>
+        <script>
+            async function uploadImage(event) {
+                event.preventDefault();
+                let formData = new FormData();
+                formData.append("file", document.getElementById("file").files[0]);
+
+                let response = await fetch("/detect/", {
+                    method: "POST",
+                    body: formData
+                });
+
+                let result = await response.json();
+                document.getElementById("results").innerText = JSON.stringify(result.detections, null, 2);
+
+                // Bildvorschau setzen
+                let image = new Image();
+                image.src = "data:image/png;base64," + result.image;
+                image.style.maxWidth = "500px";
+                document.getElementById("image-preview").innerHTML = "";
+                document.getElementById("image-preview").appendChild(image);
+            }
+
+            function previewImage(event) {
+                let reader = new FileReader();
+                reader.onload = function(){
+                    let output = document.getElementById("original-image");
+                    output.src = reader.result;
+                    output.style.display = "block";
+                }
+                reader.readAsDataURL(event.target.files[0]);
+            }
+        </script>
+    </head>
+    <body>
+        <h2>YOLOv11 NCNN Web Interface</h2>
+        <form onsubmit="uploadImage(event)">
+            <input type="file" id="file" accept="image/*" onchange="previewImage(event)" required>
+            <button type="submit">Bild hochladen</button>
+        </form>
+
+        <h3>Originalbild:</h3>
+        <img id="original-image" style="max-width: 500px; display: none;"/>
+
+        <h3>Erkannte Objekte:</h3>
+        <pre id="results"></pre>
+
+        <h3>Ergebnisbild mit Bounding-Boxes:</h3>
+        <div id="image-preview"></div>
+    </body>
+    </html>
+    """
