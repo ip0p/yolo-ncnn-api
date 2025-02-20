@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import HTMLResponse
 import numpy as np
 import io
+import base64
 from PIL import Image, ImageDraw
 import os
 from ultralytics import YOLO
@@ -30,7 +31,7 @@ def read_root():
 @app.post("/detect/")
 async def detect_objects(file: UploadFile = File(...)):
     try:
-        # Bild laden und in RGB konvertieren
+        # Bild als PIL-Image öffnen
         image = Image.open(io.BytesIO(await file.read())).convert("RGB")
 
         # YOLO Inferenz ausführen
@@ -41,10 +42,10 @@ async def detect_objects(file: UploadFile = File(...)):
         detections = []
         for result in results:
             for box in result.boxes:
-                x, y, w, h = box.xywh[0]  # Bounding-Box-Koordinaten
+                x, y, w, h = map(float, box.xywh[0])  # Sicherstellen, dass Werte floats sind
                 x1, y1, x2, y2 = x - w / 2, y - h / 2, x + w / 2, y + h / 2
-                class_id = int(box.cls)
-                confidence = float(box.conf)
+                class_id = int(box.cls.item())  # Integer-Klassen-ID
+                confidence = float(box.conf.item())  # Float-Konfidenz
 
                 # Bounding-Box zeichnen
                 draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
@@ -56,12 +57,12 @@ async def detect_objects(file: UploadFile = File(...)):
                     "bbox": [x1, y1, x2, y2]
                 })
 
-        # Bild als Bytes zurückgeben
+        # Bild mit Bounding-Boxes als Base64 encodieren
         img_byte_arr = io.BytesIO()
         image.save(img_byte_arr, format="PNG")
-        img_byte_arr = img_byte_arr.getvalue()
+        img_base64 = base64.b64encode(img_byte_arr.getvalue()).decode("utf-8")
 
-        return {"detections": detections, "image": img_byte_arr.hex()}
+        return {"detections": detections, "image": img_base64}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -89,7 +90,7 @@ def upload_page():
                 let result = await response.json();
                 document.getElementById("results").innerText = JSON.stringify(result.detections, null, 2);
 
-                // Bildvorschau setzen
+                // Bild mit Bounding-Boxes anzeigen
                 let image = new Image();
                 image.src = "data:image/png;base64," + result.image;
                 image.style.maxWidth = "500px";
