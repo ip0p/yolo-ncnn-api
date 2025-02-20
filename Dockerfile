@@ -5,7 +5,7 @@ FROM ultralytics/ultralytics:latest-arm64
 WORKDIR /ultralytics
 
 # Installiere benötigte Pakete
-RUN pip install fastapi uvicorn pillow numpy opencv-python-headless ncnn python-multipart
+RUN pip install fastapi uvicorn pillow numpy opencv-python-headless ncnn python-multipart setuptools
 RUN pip install git+https://github.com/openai/CLIP.git
 
 # Kopiere API-Skript ins Image
