@@ -13,7 +13,7 @@ RUN apt-get update && \
 RUN pip3 install ultralytics[export]
 
 # Installiere zusätzliche Abhängigkeiten (einschließlich uvicorn)
-RUN pip3 install fastapi uvicorn pillow numpy opencv-python-headless ncnn python-multipart setuptools
+RUN pip3 install fastapi uvicorn pillow numpy opencv-python-headless ncnn python-multipart setuptools git
 
 # Setze Arbeitsverzeichnis
 WORKDIR /ultralytics
