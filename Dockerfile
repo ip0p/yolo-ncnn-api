@@ -1,12 +1,19 @@
-# Verwende direkt das Ultralytics-YOLO-Image für ARM64
-FROM ultralytics/ultralytics:latest-arm64
+# Basisimage für eine ARM-Architektur, z.B. Ubuntu 22.04
+FROM ubuntu:22.04
+
+# Umgebungsvariablen für nicht-interaktive Installationen
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Aktualisieren der Paketquellen und Installation von Python 3 und pip
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip && \
+    pip3 install -U pip
+
+# Installation des ultralytics-Pakets mit optionalen Abhängigkeiten für den Export
+RUN pip3 install ultralytics[export]
 
 # Setze Arbeitsverzeichnis
 WORKDIR /ultralytics
-
-# Installiere benötigte Pakete
-RUN pip install --upgrade fastapi uvicorn pillow numpy opencv-python-headless ncnn python-multipart setuptools
-RUN pip install git+https://github.com/openai/CLIP.git
 
 # Kopiere API-Skript ins Image
 COPY api_ncnn.py /ultralytics/api_ncnn.py
