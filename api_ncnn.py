@@ -10,10 +10,11 @@ from ultralytics import YOLO
 app = FastAPI()
 
 # Modellpfad
-MODEL_PATH = "yoloworld.pt"
+MODEL_PATH = "yolov8s-world.pt"
 
 # YOLO-World Modell laden (wird automatisch heruntergeladen)
 model = YOLO(MODEL_PATH)
+model.set_classes(["egg"])
 
 
 @app.get("/")
@@ -26,9 +27,8 @@ async def detect_objects(file: UploadFile = File(...)):
     try:
         # Bild öffnen
         image = Image.open(io.BytesIO(await file.read())).convert("RGB")
-
-        # YOLO-World Inferenz mit Klassenfilter auf "egg"
-        results = model(image, classes="egg")
+        
+        results = model(image)
 
         # Bounding-Boxes zeichnen
         draw = ImageDraw.Draw(image)
