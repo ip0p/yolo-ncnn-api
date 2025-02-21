@@ -10,7 +10,7 @@ from ultralytics import YOLO
 app = FastAPI()
 
 # Modellpfad
-MODEL_PATH = "yolov8s-worldv2.pt"
+MODEL_PATH = "yolov8l-worldv2.pt"
 
 # YOLO-World Modell laden (wird automatisch heruntergeladen)
 model = YOLO(MODEL_PATH)
