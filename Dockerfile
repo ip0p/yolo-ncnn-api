@@ -14,6 +14,8 @@ RUN apt-get install -y git-svn
 # Installation des ultralytics-Pakets mit optionalen Abhängigkeiten für den Export
 RUN pip3 install ultralytics[export]
 
+RUN pip3 install fastapi uvicorn pillow numpy opencv-python-headless ncnn python-multipart setuptools
+
 # Setze Arbeitsverzeichnis
 WORKDIR /ultralytics
 
