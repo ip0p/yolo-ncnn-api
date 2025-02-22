@@ -20,7 +20,7 @@ RUN pip3 install fastapi uvicorn pillow numpy opencv-python-headless ncnn python
 WORKDIR /ultralytics
 
 # Kopiere API-Skript ins Image
-COPY api_ncnn.py /ultralytics/api_ncnn.pyc
+COPY api_ncnn.py /ultralytics/api_ncnn.py
 COPY egg.pt /ultralytics/egg.pt
 
 # Öffne den API-Port
