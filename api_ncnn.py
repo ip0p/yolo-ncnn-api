@@ -10,17 +10,21 @@ from ultralytics import YOLO
 app = FastAPI()
 
 # Modellpfad
-MODEL_PATH = "yolov8x-worldv2.pt"
+MODEL_PATH = "egg.pt"
+CONFIDENCE_THRESHOLD = 0.7  # Mindestkonfidenz für Erkennung
 
 # YOLO-World Modell laden (wird automatisch heruntergeladen)
 model = YOLO(MODEL_PATH)
-model.set_classes(["egg"])
 
+# Export the model to NCNN format
+model.export(format="ncnn")  # creates '/egg_ncnn_model'
+
+# Load the exported NCNN model
+ncnn_model = YOLO("./egg_ncnn_model")
 
 @app.get("/")
 def read_root():
     return {"message": "YOLO-World FastAPI läuft!"}
-
 
 @app.post("/detect/")
 async def detect_objects(file: UploadFile = File(...)):
@@ -28,17 +32,20 @@ async def detect_objects(file: UploadFile = File(...)):
         # Bild öffnen
         image = Image.open(io.BytesIO(await file.read())).convert("RGB")
         
-        results = model(image)
+        results = ncnn_model(image)
 
         # Bounding-Boxes zeichnen
         draw = ImageDraw.Draw(image)
         detections = []
         for result in results:
             for box in result.boxes:
+                confidence = float(box.conf.item())  # Konfidenz-Wert
+                if confidence < CONFIDENCE_THRESHOLD:
+                    continue  # Überspringe Objekte mit zu niedriger Konfidenz
+
                 x, y, w, h = map(float, box.xywh[0])  # Bounding-Box-Koordinaten
                 x1, y1, x2, y2 = x - w / 2, y - h / 2, x + w / 2, y + h / 2
                 class_id = int(box.cls.item())  # Klassen-ID
-                confidence = float(box.conf.item())  # Konfidenz-Wert
 
                 # Bounding-Box zeichnen
                 draw.rectangle([x1, y1, x2, y2], outline="red", width=3)
@@ -60,7 +67,6 @@ async def detect_objects(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
 @app.get("/upload/", response_class=HTMLResponse)
 def upload_page():
     """Web-Interface zum Hochladen von Bildern mit Vorschau und Bounding-Boxes."""
@@ -68,7 +74,7 @@ def upload_page():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>YOLO-World Egg Detector</title>
+        <title>YOLO Egg Detector</title>
         <script>
             async function uploadImage(event) {
                 event.preventDefault();

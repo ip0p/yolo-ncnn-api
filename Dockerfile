@@ -9,19 +9,17 @@ RUN apt-get update && \
     apt-get install -y python3 python3-pip && \
     pip3 install -U pip
 
-RUN apt-get install git
+RUN apt-get install -y git-svn
 
 # Installation des ultralytics-Pakets mit optionalen Abhängigkeiten für den Export
 RUN pip3 install ultralytics[export]
-
-# Installiere zusätzliche Abhängigkeiten (einschließlich uvicorn)
-RUN pip3 install fastapi uvicorn pillow numpy opencv-python-headless ncnn python-multipart setuptools
 
 # Setze Arbeitsverzeichnis
 WORKDIR /ultralytics
 
 # Kopiere API-Skript ins Image
-COPY api_ncnn.py /ultralytics/api_ncnn.py
+COPY api_ncnn.py /ultralytics/api_ncnn.pyc
+COPY egg.pt /ultralytics/egg.pt
 
 # Öffne den API-Port
 EXPOSE 8863
